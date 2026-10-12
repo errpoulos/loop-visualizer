@@ -115,3 +115,63 @@ return hits;`
     expect(result.error?.message).toContain('leaked')
   })
 })
+
+describe('branch tracking', () => {
+  it('records which branch of an if/else-if/else ran, with comparison operands', () => {
+    const code = `const out = [];
+for (let i = 0; i < arr.length; i++) {
+  if (arr[i] > 2) out.push('big');
+  else if (arr[i] === 2) out.push('two');
+  else out.push('small');
+}
+return out;`
+    const result = runCode(code, [1, 2, 3])
+    expect(result.error).toBeNull()
+    expect(result.returned).toEqual(['small', 'two', 'big'])
+    const summary = result.branches.map((b) => [result.conditions[b.cond].text, b.operands, b.taken])
+    expect(summary).toEqual([
+      ['arr[i] > 2', [1, 2], false],
+      ['arr[i] === 2', [1, 2], false],
+      ['arr[i] > 2', [2, 2], false],
+      ['arr[i] === 2', [2, 2], true],
+      ['arr[i] > 2', [3, 2], true],
+    ])
+    expect(result.conditions[0]).toMatchObject({ kind: 'if', line: 3, operator: '>', elseIsIf: true })
+  })
+
+  it('tags each evaluation with the frame of the if statement', () => {
+    const result = runCode('let x = 1;\nif (x) {\n  x = 2;\n}', [])
+    expect(result.branches).toHaveLength(1)
+    expect(result.frames[result.branches[0].frame].line).toBe(2)
+    expect(result.conditions[0]).toMatchObject({ operator: null, thenLine: 3, elseLine: null })
+  })
+
+  it('tracks ternaries, including nested ones, without changing results', () => {
+    const code = 'const f = (a, b) => (a > b ? (a > 10 ? "huge" : "big") : "small");\nreturn [f(20, 1), f(5, 1), f(1, 5)];'
+    const result = runCode(code, [])
+    expect(result.returned).toEqual(['huge', 'big', 'small'])
+    expect(result.branches.map((b) => `${result.conditions[b.cond].text}:${b.taken}`)).toEqual([
+      'a > b:true', 'a > 10:true', 'a > b:true', 'a > 10:false', 'a > b:false',
+    ])
+  })
+
+  it('keeps operands paired correctly through recursion inside a condition', () => {
+    const code = `function fib(n) {
+  if (n < 2) return n;
+  return fib(n - 1) + fib(n - 2);
+}
+if (fib(5) > fib(4)) return 'yes';
+return 'no';`
+    const result = runCode(code, [])
+    expect(result.returned).toBe('yes')
+    const outer = result.branches.at(-1)
+    expect(result.conditions[outer.cond].text).toBe('fib(5) > fib(4)')
+    expect(outer.operands).toEqual([5, 3])
+  })
+
+  it('does not evaluate short-circuited operands', () => {
+    const result = runCode('const a = null;\nif (a && a.x > 1) return 1;\nreturn 0;', [])
+    expect(result.error).toBeNull()
+    expect(result.returned).toBe(0)
+  })
+})

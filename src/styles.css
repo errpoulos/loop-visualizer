@@ -210,3 +210,16 @@ button:disabled { opacity: 0.4; cursor: default; }
 .vars .oob { color: var(--error); }
 .vars .value { word-break: break-all; }
 .vars tr.changed td { background: var(--current); }
+
+.panel-subtitle {
+  margin: 16px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.vars .muted { color: var(--muted); }
+.bool { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.bool.yes { color: var(--p2); background: color-mix(in srgb, var(--p2) 15%, transparent); }
+.bool.no { color: var(--error); background: var(--error-bg); }

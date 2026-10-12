@@ -41,14 +41,17 @@ export function runCode(source, arr) {
     program = instrument(source)
   } catch (err) {
     return {
-      frames: [], logs: [], loops: [], pointerVars: [], truncated: false, returned: undefined,
+      frames: [], logs: [], loops: [], pointerVars: [], conditions: [], branches: [], truncated: false, returned: undefined,
       error: { kind: 'syntax', message: err.message.replace(/ \(\d+:\d+\)$/, ''), line: err.loc?.line ?? null },
     }
   }
 
-  const { statements, loops, pointerVars } = program
+  const { statements, loops, pointerVars, conditions } = program
   const frames = []
   const logs = []
+  // Each evaluated if/ternary condition, tagged with the frame that was running when it happened.
+  const branches = []
+  const operands = []
   const iterations = new Map()
 
   const record = (frame) => {
@@ -67,6 +70,21 @@ export function runCode(source, arr) {
       if (iterations.get(id) === 0) {
         record({ kind: 'skip', line: loops[id].line, loopId: id, level: loops[id].level, vars: freezeVars(vars) })
       }
+    },
+    __o: (value) => {
+      operands.push(value)
+      return value
+    },
+    __c: (id, value) => {
+      const pair = conditions[id].operator ? operands.splice(-2) : null
+      branches.push({
+        cond: id,
+        frame: frames.length - 1,
+        taken: Boolean(value),
+        value: freeze(value),
+        operands: pair?.length === 2 ? pair.map((v) => freeze(v)) : null,
+      })
+      return value
     },
     __v: (read) => {
       try {
@@ -93,5 +111,5 @@ export function runCode(source, arr) {
     else error = { kind: 'runtime', message: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`, line: frames.at(-1)?.line ?? null }
   }
 
-  return { frames, logs, loops, pointerVars, truncated, returned, error }
+  return { frames, logs, loops, pointerVars, conditions, branches, truncated, returned, error }
 }

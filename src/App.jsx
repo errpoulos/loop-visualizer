@@ -93,6 +93,19 @@ export default function App() {
   )
   const loopVar = frame && frame.kind !== 'stmt' ? result.loops[frame.loopId]?.var : null
   const emphasized = new Set(loopVar ? [loopVar] : changed)
+  // Conditions evaluated between the previous visible step and this one, grouped per if/ternary.
+  const prevVisibleIndex = current > 0 ? visible[current - 1] : -1
+  const branchGroups = new Map()
+  if (frame) {
+    for (const b of result.branches) {
+      if (b.frame < prevVisibleIndex || b.frame >= frameIndex) continue
+      const group = branchGroups.get(b.cond) ?? { cond: result.conditions[b.cond], count: 0, trueCount: 0 }
+      group.count++
+      if (b.taken) group.trueCount++
+      group.last = b
+      branchGroups.set(b.cond, group)
+    }
+  }
   const pointers = result.pointerVars
     .filter((name) => Number.isInteger(vars[name]))
     .map((name) => [name, vars[name]])
@@ -246,7 +259,15 @@ export default function App() {
             onSpeed={setSpeed}
             onMode={changeMode}
           />
-          <VarsPanel vars={vars} arr={displayArr} pointerVars={result.pointerVars} changed={changed} colorFor={colorFor} />
+          <VarsPanel
+            vars={vars}
+            arr={displayArr}
+            pointerVars={result.pointerVars}
+            changed={changed}
+            colorFor={colorFor}
+            branches={[...branchGroups.values()]}
+            hasConditions={result.conditions.length > 0}
+          />
           <OutputPanel logs={logs} finished={atEnd && !error && !result.truncated} returned={result.returned} />
         </div>
       </div>

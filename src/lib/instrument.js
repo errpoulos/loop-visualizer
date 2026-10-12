@@ -8,13 +8,15 @@ import { parse } from 'acorn'
 //   __it(id, vars)  at the top of each loop iteration
 //   __ex(id, vars)  after a loop finishes (lets us notice loops that ran 0 times)
 //   __v(() => x)    reads a variable, tolerating the temporal dead zone
+//   __c(id, test)   records an if/ternary condition's result and returns it unchanged
+//   __o(x)          records one operand of a comparison inside a condition, returns it unchanged
 
 const LOOP_TYPES = new Set(['ForStatement', 'WhileStatement', 'DoWhileStatement', 'ForInStatement', 'ForOfStatement'])
 const FUNCTION_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
 const SKIP_KEYS = new Set(['type', 'start', 'end', 'loc'])
 
 export const INPUT_NAME = 'arr'
-export const RUNTIME_NAMES = ['__s', '__it', '__en', '__ex', '__v']
+export const RUNTIME_NAMES = ['__s', '__it', '__en', '__ex', '__v', '__c', '__o']
 
 export function parseSource(source) {
   return parse(source, {
@@ -71,6 +73,7 @@ export function instrument(source) {
   const statements = []
   const loops = []
   const pointerVars = []
+  const conditions = []
   let seq = 0
   let depth = 0
 
@@ -120,6 +123,37 @@ export function instrument(source) {
     }
   }
 
+  // The line a branch "goes to": the first statement inside a block, else the branch itself.
+  const branchLine = (node) =>
+    (node.type === 'BlockStatement' ? node.body[0] ?? node : node).loc.start.line
+
+  // Wraps a condition as __c(id, test). A non-logical binary test (`a > b`) also gets its operands
+  // wrapped as __o(a) > __o(b), which evaluates exactly as before but lets us show `5 > 4`.
+  function wrapCondition(test, ctx, meta) {
+    const id = conditions.push({
+      line: test.loc.start.line,
+      text: source.slice(test.start, test.end),
+      operator: test.type === 'BinaryExpression' ? test.operator : null,
+      ...meta,
+    }) - 1
+    depth++
+    insert(test.start, `__c(${id},`)
+    insert(test.end, ')', true)
+    if (test.type === 'BinaryExpression') {
+      depth++
+      for (const side of [test.left, test.right]) {
+        insert(side.start, '__o(')
+        insert(side.end, ')', true)
+      }
+      visit(test.left, ctx)
+      visit(test.right, ctx)
+      depth--
+    } else {
+      visit(test, ctx)
+    }
+    depth--
+  }
+
   // Dispatches on node type. Statements reached here sit in a non-block position (if/else branch,
   // labeled body), so they get wrapped in braces when instrumented.
   function visit(node, ctx) {
@@ -134,6 +168,16 @@ export function instrument(source) {
         if (c.test) visit(c.test, ctx)
         visitBlockList(c.consequent, ctx, frame)
       })
+      return
+    }
+    if (node.type === 'ConditionalExpression') {
+      wrapCondition(node.test, ctx, {
+        kind: 'ternary',
+        thenLine: branchLine(node.consequent),
+        elseLine: branchLine(node.alternate),
+      })
+      visit(node.consequent, ctx)
+      visit(node.alternate, ctx)
       return
     }
     if (node.type === 'CatchClause') {
@@ -188,6 +232,15 @@ export function instrument(source) {
       const loopId = visitLoop(loop, ctx)
       open += `__en(${loopId});`
       close = `;__ex(${loopId},${snap});${close}`
+    } else if (stmt.type === 'IfStatement') {
+      wrapCondition(stmt.test, ctx, {
+        kind: 'if',
+        thenLine: branchLine(stmt.consequent),
+        elseLine: stmt.alternate ? branchLine(stmt.alternate) : null,
+        elseIsIf: stmt.alternate?.type === 'IfStatement',
+      })
+      visit(stmt.consequent, ctx)
+      if (stmt.alternate) visit(stmt.alternate, ctx)
     } else {
       visitChildren(stmt, ctx)
     }
@@ -211,7 +264,7 @@ export function instrument(source) {
     const id = loops.push({ line: loop.loc.start.line, level: ctx.loopDepth, var: varName, type: loop.type }) - 1
 
     for (const key of ['init', 'test', 'update', 'left', 'right']) {
-      if (loop[key]) visitChildren(loop[key], loopCtx)
+      if (loop[key]) visit(loop[key], loopCtx)
     }
 
     const { body } = loop
@@ -245,5 +298,5 @@ export function instrument(source) {
   }
   code += source.slice(last)
 
-  return { code: `"use strict";${code}`, statements, loops, pointerVars }
+  return { code: `"use strict";${code}`, statements, loops, pointerVars, conditions }
 }
