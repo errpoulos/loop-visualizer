@@ -188,6 +188,7 @@ return -1;
 npm test          # unit tests (Vitest)
 npm run lint      # Oxlint
 npm run build     # production build in dist/
+npm start         # serve dist/ on $PORT (default 3000), as on Heroku
 ```
 
 ### How it works
