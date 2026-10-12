@@ -3,14 +3,15 @@ export default function Controls({ cursor, total, playing, speed, mode, onSeek, 
   const disabled = total === 0
   return (
     <section className="panel controls">
+      <h2 className="panel-title">controls</h2>
       <div className="buttons">
-        <button disabled={disabled || cursor === 0} onClick={() => onSeek(0)} title="First (Home)">⏮</button>
-        <button disabled={disabled || cursor === 0} onClick={() => onSeek(cursor - 1)} title="Previous (←)">◀</button>
+        <button disabled={disabled || cursor === 0} onClick={() => onSeek(0)} title="First (Home)">|&lt;</button>
+        <button disabled={disabled || cursor === 0} onClick={() => onSeek(cursor - 1)} title="Previous (←)">&lt;</button>
         <button className="play" disabled={disabled} onClick={onTogglePlay} title="Play / pause (Space)">
-          {playing ? '⏸' : '▶'}
+          {playing ? 'pause' : 'play'}
         </button>
-        <button disabled={disabled || cursor >= last} onClick={() => onSeek(cursor + 1)} title="Next (→)">▶|</button>
-        <button disabled={disabled || cursor >= last} onClick={() => onSeek(last)} title="Last (End)">⏭</button>
+        <button disabled={disabled || cursor >= last} onClick={() => onSeek(cursor + 1)} title="Next (→)">&gt;</button>
+        <button disabled={disabled || cursor >= last} onClick={() => onSeek(last)} title="Last (End)">&gt;|</button>
         <span className="step-count mono">
           {disabled ? 'No steps' : `Step ${cursor + 1} / ${total}`}
         </span>

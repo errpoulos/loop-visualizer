@@ -29,12 +29,12 @@ const highlight = HighlightStyle.define([
 ])
 
 const theme = EditorView.theme({
-  '&': { backgroundColor: 'var(--code-bg)', color: 'var(--text)', borderRadius: '8px', fontSize: '13px' },
-  '&.cm-focused': { outline: '2px solid var(--p0)', outlineOffset: '1px' },
-  '.cm-scroller': { fontFamily: "ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace", lineHeight: '1.6' },
+  '&': { backgroundColor: 'var(--code-bg)', color: 'var(--text)', fontSize: '13px' },
+  '&.cm-focused': { outline: '1px solid var(--green)', borderColor: 'var(--green)' },
+  '.cm-scroller': { fontFamily: 'var(--font)', lineHeight: '1.6' },
   '.cm-content': { caretColor: 'var(--text)', padding: '8px 0' },
-  '.cm-cursor': { borderLeftColor: 'var(--text)' },
-  '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--muted)', border: 'none' },
+  '.cm-cursor': { borderLeft: '0.6em solid var(--green)', opacity: 0.5 },
+  '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--grey0)', borderRight: '1px dashed var(--border)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'var(--selection) !important' },
   '.cm-matchingBracket': { backgroundColor: 'var(--selection)', outline: 'none' },
   '.cm-step-current': { backgroundColor: 'var(--current)', boxShadow: 'inset 3px 0 var(--p0)' },

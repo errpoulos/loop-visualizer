@@ -180,97 +180,107 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
+  const STATUS_MODES = { iter: 'ITER', stmt: 'LINE', skip: 'SKIP' }
   let status = null
-  if (frame?.kind === 'skip') status = `Line ${frame.line}: loop ${loopVar ?? ''} skipped, condition false on entry`
+  if (frame?.kind === 'skip') status = `loop ${loopVar ?? ''} skipped: condition false on entry`
   else if (frame?.kind === 'iter') {
-    status = loopVar
-      ? `Line ${frame.line}: loop ${loopVar} → ${formatValue(vars[loopVar])}`
-      : `Line ${frame.line}: loop iteration`
-  } else if (frame) status = `Line ${frame.line}: about to run`
+    status = loopVar ? `loop ${loopVar} → ${formatValue(vars[loopVar])}` : 'loop iteration'
+  } else if (frame) status = 'about to run'
 
   const { error } = result
   const atEnd = total > 0 && current === total - 1
   const logs = atEnd ? result.logs : frame ? result.logs.filter((log) => log.frame <= frameIndex) : []
 
   return (
-    <main className="app">
-      <header>
-        <h1>Loop Visualizer</h1>
-        <p className="hint">
-          Write JS against <code>arr</code> and step through it. ← → to step, Space to play.
-        </p>
+    <>
+      <header className="titlebar">
+        <div className="titlebar-inner">
+          <h1>loop-visualizer</h1>
+          <p className="keys">
+            <kbd>←</kbd><kbd>→</kbd> step <kbd>space</kbd> play <kbd>home</kbd><kbd>end</kbd> jump
+          </p>
+        </div>
       </header>
-
-      <div className="layout">
-        <div className="col">
-          <ArrayInput text={arrText} error={arrError} onChange={handleArrayText} />
-          <LoopConfig
-            chain={chain}
-            colorFor={colorFor}
-            onUpdate={commitLoopEdit}
-            onDirection={(index, dir) => applyCode(setDirection(code, index, dir))}
-            onAdd={() => applyCode(addInnerLoop(code))}
-            onRemove={() => applyCode(removeInnerLoop(code))}
-          />
-          <section className="panel">
-            <h2 className="panel-title">Code</h2>
-            <CodeEditor
-              value={code}
-              onChange={applyCode}
-              activeLine={frame?.line}
-              activeKind={frame?.kind}
-              errorLine={error?.line}
+      <main className="app">
+        <div className="layout">
+          <div className="col">
+            <ArrayInput text={arrText} error={arrError} onChange={handleArrayText} />
+            <LoopConfig
+              chain={chain}
+              colorFor={colorFor}
+              onUpdate={commitLoopEdit}
+              onDirection={(index, dir) => applyCode(setDirection(code, index, dir))}
+              onAdd={() => applyCode(addInnerLoop(code))}
+              onRemove={() => applyCode(removeInnerLoop(code))}
             />
-            <p className="hint">
-              <code>arr</code> is a copy of your array. Use <code>return</code> and <code>console.log</code> to see results.
-            </p>
-          </section>
+            <section className="panel">
+              <h2 className="panel-title">Code</h2>
+              <CodeEditor
+                value={code}
+                onChange={applyCode}
+                activeLine={frame?.line}
+                activeKind={frame?.kind}
+                errorLine={error?.line}
+              />
+              <p className="hint">
+                <code>arr</code> is a copy of your array. Use <code>return</code> and <code>console.log</code> to see results.
+              </p>
+            </section>
+          </div>
+          <div className="col">
+            <ArrayView arr={displayArr} prevArr={prevArr} pointers={pointers} emphasized={emphasized} colorFor={colorFor} />
+            {error && (
+              <section className="panel alert error">
+                <h2 className="panel-title">{error.kind === 'syntax' ? 'syntax error' : 'runtime error'}</h2>
+                {error.line ? `line ${error.line}: ` : ''}{error.message}
+              </section>
+            )}
+            {result.truncated && (
+              <section className="panel alert warning">
+                <h2 className="panel-title">warning</h2>
+                Stopped after {MAX_STEPS.toLocaleString()} steps. Check for an infinite loop.
+              </section>
+            )}
+            {!error && total === 0 && (
+              <section className="panel alert warning">
+                <h2 className="panel-title">warning</h2>
+                {result.frames.length === 0 ? 'Nothing ran yet.' : 'No loop iterations. Switch to "every line" to step through statements.'}
+              </section>
+            )}
+            {status && (
+              <div className={`statusline ${frame.kind}`}>
+                <span className="mode">{STATUS_MODES[frame.kind]}</span>
+                <span className="message">{status}</span>
+                <span className="position">ln {frame.line} │ {current + 1}/{total}</span>
+              </div>
+            )}
+            <Controls
+              cursor={current}
+              total={total}
+              playing={isPlaying}
+              speed={speed}
+              mode={mode}
+              onSeek={(i) => {
+                setPlaying(false)
+                seek(i)
+              }}
+              onTogglePlay={togglePlay}
+              onSpeed={setSpeed}
+              onMode={changeMode}
+            />
+            <VarsPanel
+              vars={vars}
+              arr={displayArr}
+              pointerVars={result.pointerVars}
+              changed={changed}
+              colorFor={colorFor}
+              branches={[...branchGroups.values()]}
+              hasConditions={result.conditions.length > 0}
+            />
+            <OutputPanel logs={logs} finished={atEnd && !error && !result.truncated} returned={result.returned} />
+          </div>
         </div>
-        <div className="col">
-          <ArrayView arr={displayArr} prevArr={prevArr} pointers={pointers} emphasized={emphasized} colorFor={colorFor} />
-          {error && (
-            <p className="error panel">
-              {error.kind === 'syntax' ? 'Syntax error' : 'Runtime error'}
-              {error.line ? ` on line ${error.line}` : ''}: {error.message}
-            </p>
-          )}
-          {result.truncated && (
-            <p className="warning panel">
-              Stopped after {MAX_STEPS.toLocaleString()} steps. Check for an infinite loop.
-            </p>
-          )}
-          {!error && total === 0 && (
-            <p className="warning panel">
-              {result.frames.length === 0 ? 'Nothing ran yet.' : 'No loop iterations. Switch to "every line" to step through statements.'}
-            </p>
-          )}
-          {status && <p className={`status ${frame.kind === 'skip' ? 'skip' : ''}`}>{status}</p>}
-          <Controls
-            cursor={current}
-            total={total}
-            playing={isPlaying}
-            speed={speed}
-            mode={mode}
-            onSeek={(i) => {
-              setPlaying(false)
-              seek(i)
-            }}
-            onTogglePlay={togglePlay}
-            onSpeed={setSpeed}
-            onMode={changeMode}
-          />
-          <VarsPanel
-            vars={vars}
-            arr={displayArr}
-            pointerVars={result.pointerVars}
-            changed={changed}
-            colorFor={colorFor}
-            branches={[...branchGroups.values()]}
-            hasConditions={result.conditions.length > 0}
-          />
-          <OutputPanel logs={logs} finished={atEnd && !error && !result.truncated} returned={result.returned} />
-        </div>
-      </div>
-    </main>
+      </main>
+    </>
   )
 }

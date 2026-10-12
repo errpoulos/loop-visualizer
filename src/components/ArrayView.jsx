@@ -20,6 +20,7 @@ export default function ArrayView({ arr, prevArr, pointers, emphasized, colorFor
 
   return (
     <section className="panel array-panel">
+      <h2 className="panel-title">arr</h2>
       <div className="array-scroll">
         <div className="array-row">
           {indices.map((index) => {
