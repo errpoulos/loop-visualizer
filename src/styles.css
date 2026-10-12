@@ -1,0 +1,181 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --border: #dde1e7;
+  --text: #1c2128;
+  --muted: #6a737d;
+  --cell: #ffffff;
+  --code-bg: #f1f3f5;
+  --current: rgba(56, 132, 255, 0.16);
+  --skip: rgba(214, 140, 0, 0.18);
+  --error: #c9302c;
+  --warn: #a96500;
+  --i: #3884ff;
+  --j: #e8780c;
+  --k: #1f9d55;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --panel: #1c2027;
+    --border: #2f3540;
+    --text: #e3e7ed;
+    --muted: #8b95a3;
+    --cell: #232831;
+    --code-bg: #171a20;
+    --current: rgba(88, 152, 255, 0.22);
+    --skip: rgba(230, 160, 40, 0.2);
+    --error: #ff6b66;
+    --warn: #e7a83a;
+    --i: #5c9bff;
+    --j: #ff9a3c;
+    --k: #3cc47a;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.mono, code, pre { font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; }
+
+.app { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+header h1 { margin: 0 0 4px; font-size: 24px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; margin-top: 16px; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0;
+}
+.panel-title {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input, select, button {
+  font: inherit;
+  color: var(--text);
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--i); outline-offset: 1px; }
+#array-input { width: 100%; }
+input.invalid { border-color: var(--error); }
+button { cursor: pointer; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+.error { color: var(--error); margin: 6px 0 0; }
+.warning { color: var(--warn); }
+.hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.hint code { background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
+
+.loop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.field { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.field input { width: 64px; }
+.icon-btn { padding: 4px 9px; }
+.add-btn { background: transparent; border-style: dashed; width: 100%; color: var(--muted); }
+
+.var-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 700;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.var-i { --c: var(--i); }
+.var-j { --c: var(--j); }
+.var-k { --c: var(--k); }
+.var-badge { background: var(--c); }
+
+.array-scroll { overflow-x: auto; padding-bottom: 4px; }
+.array-row { display: flex; gap: 6px; align-items: flex-end; min-height: 120px; }
+.cell-col { display: flex; flex-direction: column; align-items: center; min-width: 52px; }
+.pointers { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; justify-content: flex-end; }
+.pointer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--c);
+  font-weight: 700;
+  font-family: ui-monospace, Menlo, monospace;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.pointer.active { opacity: 1; font-size: 1.1em; }
+.pointer .arrow { font-size: 10px; margin-top: 1px; }
+.cell {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--cell);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cell.ghost { border-style: dashed; background: transparent; }
+.cell.hl-i { border-color: var(--i); background: color-mix(in srgb, var(--i) 14%, var(--cell)); }
+.cell.hl-j { border-color: var(--j); background: color-mix(in srgb, var(--j) 14%, var(--cell)); }
+.cell.hl-k { border-color: var(--k); background: color-mix(in srgb, var(--k) 14%, var(--cell)); }
+.cell.ghost.hl-i, .cell.ghost.hl-j, .cell.ghost.hl-k { border-color: var(--error); background: transparent; }
+.cell-index { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.status { margin: 0; padding: 0 4px; font-weight: 600; }
+.status.skip { color: var(--warn); }
+
+.controls { display: flex; flex-direction: column; gap: 12px; }
+.buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.buttons button { min-width: 44px; }
+.buttons .play { background: var(--i); border-color: var(--i); color: #fff; }
+.step-count { margin-left: auto; color: var(--muted); font-size: 13px; }
+.scrubber { width: 100%; padding: 0; accent-color: var(--i); }
+.speed { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.speed input { flex: 1; padding: 0; accent-color: var(--muted); }
+
+.code {
+  margin: 0;
+  padding: 10px 0;
+  background: var(--code-bg);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.code-line { padding: 1px 12px; white-space: pre; }
+.code-line.current { background: var(--current); box-shadow: inset 3px 0 var(--i); }
+.code-line.skip { background: var(--skip); box-shadow: inset 3px 0 var(--warn); }
+.code-line.muted, .code-note { color: var(--muted); }
+
+.vars { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vars th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+.vars td { padding: 6px; border-bottom: 1px solid var(--border); }
+.vars tr:last-child td { border-bottom: none; }
+.vars .var-badge { width: 22px; height: 22px; }
+.vars .oob { color: var(--error); }
