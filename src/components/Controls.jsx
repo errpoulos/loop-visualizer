@@ -1,4 +1,4 @@
-export default function Controls({ cursor, total, playing, speed, onSeek, onTogglePlay, onSpeed }) {
+export default function Controls({ cursor, total, playing, speed, mode, onSeek, onTogglePlay, onSpeed, onMode }) {
   const last = total - 1
   const disabled = total === 0
   return (
@@ -25,19 +25,26 @@ export default function Controls({ cursor, total, playing, speed, onSeek, onTogg
         aria-label="Step"
         onChange={(e) => onSeek(Number(e.target.value))}
       />
-      <label className="speed">
-        <span>Speed</span>
-        <input
-          type="range"
-          min={50}
-          max={1500}
-          step={50}
-          value={1550 - speed}
-          aria-label="Playback speed"
-          onChange={(e) => onSpeed(1550 - Number(e.target.value))}
-        />
-        <span className="mono">{speed}ms</span>
-      </label>
+      <div className="control-row">
+        <div className="segmented" role="group" aria-label="Step by">
+          <span>Step by</span>
+          <button className={mode === 'loops' ? 'on' : ''} onClick={() => onMode('loops')}>loop iteration</button>
+          <button className={mode === 'lines' ? 'on' : ''} onClick={() => onMode('lines')}>every line</button>
+        </div>
+        <label className="speed">
+          <span>Speed</span>
+          <input
+            type="range"
+            min={50}
+            max={1500}
+            step={50}
+            value={1550 - speed}
+            aria-label="Playback speed"
+            onChange={(e) => onSpeed(1550 - Number(e.target.value))}
+          />
+          <span className="mono">{speed}ms</span>
+        </label>
+      </div>
     </section>
   )
 }

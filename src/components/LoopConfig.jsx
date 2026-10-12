@@ -1,86 +1,117 @@
-import { defaultLoop, LOOP_VARS } from '../lib/generateFrames.js'
+import { useState } from 'react'
+import { MAX_FORM_LOOPS } from '../lib/loopSync.js'
 
 const CMP_OPTIONS = {
   forward: ['<', '<='],
   reverse: ['>', '>='],
 }
 
-export default function LoopConfig({ loops, onChange }) {
-  const update = (level, patch) => {
-    onChange(loops.map((loop, i) => (i === level ? { ...loop, ...patch } : loop)))
+// Shows the code's value unless focused; while typing, keeps a draft and commits only text that
+// still parses, so a half-typed expression doesn't break the code.
+function ExprField({ label, value, title, onCommit }) {
+  const [draft, setDraft] = useState(null)
+  const [invalid, setInvalid] = useState(false)
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        className={`mono ${invalid ? 'invalid' : ''}`}
+        value={draft ?? value}
+        title={title}
+        spellCheck={false}
+        onFocus={() => setDraft(value)}
+        onBlur={() => {
+          setDraft(null)
+          setInvalid(false)
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          setInvalid(e.target.value.trim() === '' || !onCommit(e.target.value))
+        }}
+      />
+    </label>
+  )
+}
+
+export default function LoopConfig({ chain, colorFor, onUpdate, onDirection, onAdd, onRemove }) {
+  if (!chain) {
+    return (
+      <section className="panel">
+        <h2 className="panel-title">Loops</h2>
+        <p className="hint">Fix the syntax error in the code to edit loops here.</p>
+      </section>
+    )
   }
 
-  const changeDirection = (level, dir) => {
-    onChange(loops.map((loop, i) => (i === level ? defaultLoop(level, dir) : loop)))
-  }
+  const canAdd = chain.length < MAX_FORM_LOOPS && (chain.length === 0 || chain.at(-1).node.body.type === 'BlockStatement')
 
   return (
     <section className="panel">
       <h2 className="panel-title">Loops</h2>
-      {loops.map((loop, level) => {
-        const scopeVars = ['n', ...LOOP_VARS.slice(0, level)].join(', ')
+      {chain.length === 0 && <p className="hint">No for-loops in the code yet.</p>}
+      {chain.map((loop, level) => {
+        const scope = ['n', ...chain.slice(0, level).map((l) => l.var)].join(', ')
+        const badge = (
+          <span className="var-badge" style={{ '--c': colorFor(loop.var) }}>
+            {loop.var ?? '?'}
+          </span>
+        )
+        if (!loop.simple) {
+          return (
+            <div className="loop-row" key={level} style={{ marginLeft: level * 20 }}>
+              {badge}
+              <code className="custom-loop">{loop.header}</code>
+              <span className="hint inline">edit in code</span>
+            </div>
+          )
+        }
         return (
-          <div className="loop-row" key={loop.var} style={{ marginLeft: level * 20 }}>
-            <span className={`var-badge var-${loop.var}`}>{loop.var}</span>
+          <div className="loop-row" key={level} style={{ marginLeft: level * 20 }}>
+            {badge}
             <select
               value={loop.dir}
               aria-label={`${loop.var} direction`}
-              onChange={(e) => changeDirection(level, e.target.value)}
+              onChange={(e) => onDirection(level, e.target.value)}
             >
               <option value="forward">forward ++</option>
               <option value="reverse">reverse --</option>
             </select>
-            <label className="field">
-              <span>start</span>
-              <input
-                className="mono"
-                value={loop.start}
-                title={`Can use: ${scopeVars}`}
-                spellCheck={false}
-                onChange={(e) => update(level, { start: e.target.value })}
-              />
-            </label>
+            <ExprField
+              label="start"
+              value={loop.start}
+              title={`Any JS expression; can use ${scope}`}
+              onCommit={(start) => onUpdate(level, { start })}
+            />
             <select
               className="mono"
               value={loop.cmp}
               aria-label={`${loop.var} comparator`}
-              onChange={(e) => update(level, { cmp: e.target.value })}
+              onChange={(e) => onUpdate(level, { cmp: e.target.value })}
             >
               {CMP_OPTIONS[loop.dir].map((cmp) => (
                 <option key={cmp} value={cmp}>{`${loop.var} ${cmp}`}</option>
               ))}
             </select>
-            <label className="field">
-              <span>end</span>
-              <input
-                className="mono"
-                value={loop.end}
-                title={`Can use: ${scopeVars}`}
-                spellCheck={false}
-                onChange={(e) => update(level, { end: e.target.value })}
-              />
-            </label>
-            {level > 0 && level === loops.length - 1 && (
-              <button
-                className="icon-btn"
-                aria-label={`Remove loop ${loop.var}`}
-                onClick={() => onChange(loops.slice(0, -1))}
-              >
+            <ExprField
+              label="end"
+              value={loop.end}
+              title={`Any JS expression; can use ${scope}`}
+              onCommit={(end) => onUpdate(level, { end })}
+            />
+            {level > 0 && level === chain.length - 1 && (
+              <button className="icon-btn" aria-label={`Remove loop ${loop.var}`} title="Remove loop (keeps its body)" onClick={onRemove}>
                 ✕
               </button>
             )}
           </div>
         )
       })}
-      {loops.length < LOOP_VARS.length && (
-        <button className="add-btn" onClick={() => onChange([...loops, defaultLoop(loops.length)])}>
-          + Add nested loop ({LOOP_VARS[loops.length]})
+      {canAdd && (
+        <button className="add-btn" onClick={onAdd}>
+          + {chain.length === 0 ? 'Add a loop' : 'Add nested loop'}
         </button>
       )}
-      <p className="hint">
-        Expressions can use <code>n</code> (array length) and outer loop variables, e.g.{' '}
-        <code>i + 1</code>, <code>n - 1</code>, <code>n / 2</code>.
-      </p>
+      <p className="hint">The form and the code stay in sync. Edit either one.</p>
     </section>
   )
 }
