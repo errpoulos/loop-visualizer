@@ -4,7 +4,7 @@ A tool to help you visualize iteration in your code. Keep track of the current i
 
 Write JavaScript against an array, then step through it forwards and backwards, one loop iteration or one line at a time. It's built for working through LeetCode-style array problems: two pointers, nested loops, sorting and searching.
 
-**Live app:** https://loop-visualizer-d6f00b157b28.herokuapp.com/
+**Live app:** https://www.loopvisualizer.com
 
 ## Quick start
 
