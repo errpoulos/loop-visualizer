@@ -71,11 +71,11 @@ The form edits the chain of nested `for` loops, starting with the first one in y
 
 | Control | Keyboard |
 | --- | --- |
-| ⏮ First step | `Home` |
-| ◀ Previous step | `←` |
-| ▶ / ⏸ Play / pause | `Space` |
-| ▶\| Next step | `→` |
-| ⏭ Last step | `End` |
+| `\|<` First step | `Home` |
+| `<` Previous step | `←` |
+| `play` / `pause` | `Space` |
+| `>` Next step | `→` |
+| `>\|` Last step | |
 | Slider | Drag to jump to any step |
 | Speed | Playback delay per step |
 

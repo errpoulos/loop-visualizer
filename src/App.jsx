@@ -171,7 +171,6 @@ export default function App() {
       if (e.key === 'ArrowRight') seek(current + 1)
       else if (e.key === 'ArrowLeft') seek(current - 1)
       else if (e.key === 'Home') seek(0)
-      else if (e.key === 'End') seek(total - 1)
       else if (e.key === ' ' && tag !== 'BUTTON') togglePlay()
       else return
       e.preventDefault()
@@ -197,7 +196,7 @@ export default function App() {
         <div className="titlebar-inner">
           <h1>loop-visualizer</h1>
           <p className="keys">
-            <kbd>←</kbd><kbd>→</kbd> step <kbd>space</kbd> play <kbd>home</kbd><kbd>end</kbd> jump
+            <kbd>←</kbd><kbd>→</kbd> step <kbd>space</kbd> play <kbd>home</kbd> jump
           </p>
         </div>
       </header>

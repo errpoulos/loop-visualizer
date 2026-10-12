@@ -11,7 +11,7 @@ export default function Controls({ cursor, total, playing, speed, mode, onSeek, 
           {playing ? 'pause' : 'play'}
         </button>
         <button disabled={disabled || cursor >= last} onClick={() => onSeek(cursor + 1)} title="Next (→)">&gt;</button>
-        <button disabled={disabled || cursor >= last} onClick={() => onSeek(last)} title="Last (End)">&gt;|</button>
+        <button disabled={disabled || cursor >= last} onClick={() => onSeek(last)} title="Last">&gt;|</button>
         <span className="step-count mono">
           {disabled ? 'No steps' : `Step ${cursor + 1} / ${total}`}
         </span>
