@@ -334,8 +334,26 @@ button:disabled { opacity: 0.35; cursor: default; }
 
 /* ── Code editor and output ─────────────────────────── */
 
-.editor .cm-editor { min-height: 260px; max-height: 520px; border: 1px solid var(--border); }
-.editor .cm-scroller { overflow: auto; }
+.editor-host .cm-editor { height: 100%; border: 1px solid var(--border); border-bottom: none; }
+.editor-host .cm-scroller { overflow: auto; }
+.editor-resize {
+  display: grid;
+  place-items: center;
+  height: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg1);
+  color: var(--grey0);
+  font-size: 9px;
+  line-height: 1;
+  cursor: row-resize;
+  user-select: none;
+  touch-action: none;
+}
+.editor-resize::before { content: '═══'; letter-spacing: 1px; }
+.editor-resize:hover, .editor-resize:focus-visible { color: var(--green); background: var(--bg2); }
+.editor-resize:focus-visible { outline: 1px solid var(--green); outline-offset: 0; }
+body.resizing { cursor: row-resize; user-select: none; }
+body.resizing .editor-resize { color: var(--green); background: var(--bg2); }
 .output {
   margin: 0;
   padding: 8px 12px;

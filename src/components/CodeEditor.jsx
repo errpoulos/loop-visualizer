@@ -5,7 +5,7 @@ import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } fr
 import { EditorState, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const setLineMarks = StateEffect.define()
 
@@ -42,7 +42,24 @@ const theme = EditorView.theme({
   '.cm-step-error': { backgroundColor: 'var(--error-bg)', boxShadow: 'inset 3px 0 var(--error)' },
 })
 
+const HEIGHT_KEY = 'loop-visualizer:editor-height'
+const DEFAULT_HEIGHT = 340
+const MIN_HEIGHT = 160
+const MAX_HEIGHT = 1600
+
+const clampHeight = (h) => Math.round(Math.min(Math.max(h, MIN_HEIGHT), MAX_HEIGHT))
+
+function loadHeight() {
+  try {
+    const saved = Number(localStorage.getItem(HEIGHT_KEY))
+    return saved ? clampHeight(saved) : DEFAULT_HEIGHT
+  } catch {
+    return DEFAULT_HEIGHT
+  }
+}
+
 export default function CodeEditor({ value, onChange, activeLine, activeKind, errorLine }) {
+  const [height, setHeight] = useState(loadHeight)
   const hostRef = useRef(null)
   const viewRef = useRef(null)
   const onChangeRef = useRef(onChange)
@@ -107,5 +124,61 @@ export default function CodeEditor({ value, onChange, activeLine, activeKind, er
     view.dispatch({ effects })
   }, [activeLine, activeKind, errorLine, value])
 
-  return <div className="editor" ref={hostRef} />
+  useEffect(() => {
+    try {
+      localStorage.setItem(HEIGHT_KEY, String(height))
+    } catch {
+      // ignore
+    }
+  }, [height])
+
+  // Drag the handle under the editor to resize it vertically.
+  const startResize = (e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const handle = e.currentTarget
+    const startY = e.clientY
+    const startHeight = height
+    handle.setPointerCapture(e.pointerId)
+    document.body.classList.add('resizing')
+    const onMove = (ev) => setHeight(clampHeight(startHeight + ev.clientY - startY))
+    const onEnd = () => {
+      document.body.classList.remove('resizing')
+      handle.removeEventListener('pointermove', onMove)
+      handle.removeEventListener('pointerup', onEnd)
+      handle.removeEventListener('pointercancel', onEnd)
+    }
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onEnd)
+    handle.addEventListener('pointercancel', onEnd)
+  }
+
+  const resizeWithKeys = (e) => {
+    const step = e.shiftKey ? 80 : 20
+    if (e.key === 'ArrowUp') setHeight((h) => clampHeight(h - step))
+    else if (e.key === 'ArrowDown') setHeight((h) => clampHeight(h + step))
+    else return
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  return (
+    <div className="editor">
+      <div className="editor-host" ref={hostRef} style={{ height }} />
+      <div
+        className="editor-resize"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize code editor"
+        aria-valuemin={MIN_HEIGHT}
+        aria-valuemax={MAX_HEIGHT}
+        aria-valuenow={height}
+        tabIndex={0}
+        title="Drag to resize · double-click to reset"
+        onPointerDown={startResize}
+        onKeyDown={resizeWithKeys}
+        onDoubleClick={() => setHeight(DEFAULT_HEIGHT)}
+      />
+    </div>
+  )
 }
