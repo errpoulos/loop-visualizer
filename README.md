@@ -53,6 +53,16 @@ for (let i = 0; i < n; i++) {
 - `console.log(...)` output appears in the **Output** panel, up to the step you're on.
 - The code re-runs a moment after you stop typing.
 
+**Sizing the editor:**
+
+| Action | How |
+| --- | --- |
+| Taller / shorter | Drag the `═══` bar under the editor, or focus it and press `↑` / `↓` (`Shift` for bigger steps). Double-click to reset. |
+| Wider / narrower | Drag the dotted divider between the two columns, or focus it and press `←` / `→` (`Shift` for bigger steps). Double-click to reset. |
+| Zoom | Use `− 100% +` on the code panel's border, `Ctrl` `+` / `Ctrl` `−` while typing in the editor, or `Ctrl` + scroll over it. Click the percentage or press `Ctrl` `0` to reset. |
+
+The editor height, column width and zoom are remembered in your browser.
+
 ### 3. Or build loops with the form
 
 The **Loops** panel and the code stay in sync. Change either one and the other updates.

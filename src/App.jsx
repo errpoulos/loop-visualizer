@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ArrayInput from './components/ArrayInput.jsx'
 import ArrayView from './components/ArrayView.jsx'
 import CodeEditor from './components/CodeEditor.jsx'
@@ -9,10 +9,17 @@ import VarsPanel from './components/VarsPanel.jsx'
 import {
   addInnerLoop, DEFAULT_CODE, parseLoopChain, removeInnerLoop, setDirection, updateLoop,
 } from './lib/loopSync.js'
+import { clamp, loadNumber, saveNumber, startPointerDrag } from './lib/drag.js'
 import { parseArray } from './lib/parseArray.js'
 import { formatValue, MAX_STEPS, runCode } from './lib/runCode.js'
 
 const STORAGE_KEY = 'loop-visualizer:v2'
+const SPLIT_KEY = 'loop-visualizer:split'
+// Width of the left (editor) column, as a percentage of the layout.
+const DEFAULT_SPLIT = 45
+const MIN_SPLIT = 25
+const MAX_SPLIT = 75
+const clampSplit = (pct) => Math.round(clamp(pct, MIN_SPLIT, MAX_SPLIT) * 10) / 10
 const PALETTE_SIZE = 6
 
 function loadConfig() {
@@ -45,6 +52,26 @@ export default function App() {
   const [cursor, setCursor] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(500)
+  const [split, setSplit] = useState(() => loadNumber(SPLIT_KEY, DEFAULT_SPLIT, clampSplit))
+  const layoutRef = useRef(null)
+
+  useEffect(() => saveNumber(SPLIT_KEY, split), [split])
+
+  // Drag the divider between the columns to widen or narrow the editor side.
+  const startSplitDrag = (e) => {
+    const rect = layoutRef.current.getBoundingClientRect()
+    startPointerDrag(e, (ev) => setSplit(clampSplit(((ev.clientX - rect.left) / rect.width) * 100)), 'col')
+  }
+
+  const resizeSplitWithKeys = (e) => {
+    const step = e.shiftKey ? 10 : 2
+    if (e.key === 'ArrowLeft') setSplit((pct) => clampSplit(pct - step))
+    else if (e.key === 'ArrowRight') setSplit((pct) => clampSplit(pct + step))
+    else return
+    e.preventDefault()
+    // Keep the arrow keys from also stepping through frames.
+    e.stopPropagation()
+  }
 
   // Re-run shortly after typing stops rather than on every keystroke.
   useEffect(() => {
@@ -201,7 +228,7 @@ export default function App() {
         </div>
       </header>
       <main className="app">
-        <div className="layout">
+        <div className="layout" ref={layoutRef} style={{ '--split': `${split}%` }}>
           <div className="col">
             <ArrayInput text={arrText} error={arrError} onChange={handleArrayText} />
             <LoopConfig
@@ -226,6 +253,20 @@ export default function App() {
               </p>
             </section>
           </div>
+          <div
+            className="col-splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize columns"
+            aria-valuemin={MIN_SPLIT}
+            aria-valuemax={MAX_SPLIT}
+            aria-valuenow={Math.round(split)}
+            tabIndex={0}
+            title="Drag to resize · double-click to reset"
+            onPointerDown={startSplitDrag}
+            onKeyDown={resizeSplitWithKeys}
+            onDoubleClick={() => setSplit(DEFAULT_SPLIT)}
+          />
           <div className="col">
             <ArrayView arr={displayArr} prevArr={prevArr} pointers={pointers} emphasized={emphasized} colorFor={colorFor} />
             {error && (

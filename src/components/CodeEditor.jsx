@@ -6,6 +6,7 @@ import { EditorState, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useRef, useState } from 'react'
+import { clamp, loadNumber, saveNumber, startPointerDrag } from '../lib/drag.js'
 
 const setLineMarks = StateEffect.define()
 
@@ -29,7 +30,7 @@ const highlight = HighlightStyle.define([
 ])
 
 const theme = EditorView.theme({
-  '&': { backgroundColor: 'var(--code-bg)', color: 'var(--text)', fontSize: '13px' },
+  '&': { backgroundColor: 'var(--code-bg)', color: 'var(--text)', fontSize: 'var(--editor-font-size, 13px)' },
   '&.cm-focused': { outline: '1px solid var(--green)', borderColor: 'var(--green)' },
   '.cm-scroller': { fontFamily: 'var(--font)', lineHeight: '1.6' },
   '.cm-content': { caretColor: 'var(--text)', padding: '8px 0' },
@@ -46,20 +47,19 @@ const HEIGHT_KEY = 'loop-visualizer:editor-height'
 const DEFAULT_HEIGHT = 340
 const MIN_HEIGHT = 160
 const MAX_HEIGHT = 1600
+const clampHeight = (h) => Math.round(clamp(h, MIN_HEIGHT, MAX_HEIGHT))
 
-const clampHeight = (h) => Math.round(Math.min(Math.max(h, MIN_HEIGHT), MAX_HEIGHT))
-
-function loadHeight() {
-  try {
-    const saved = Number(localStorage.getItem(HEIGHT_KEY))
-    return saved ? clampHeight(saved) : DEFAULT_HEIGHT
-  } catch {
-    return DEFAULT_HEIGHT
-  }
-}
+const FONT_KEY = 'loop-visualizer:editor-font-size'
+const DEFAULT_FONT = 13
+const MIN_FONT = 9
+const MAX_FONT = 28
+const clampFont = (size) => clamp(Math.round(size), MIN_FONT, MAX_FONT)
+// Wheel distance (in deltaY units) per zoom step, so trackpad pinches don't zoom too fast.
+const WHEEL_STEP = 60
 
 export default function CodeEditor({ value, onChange, activeLine, activeKind, errorLine }) {
-  const [height, setHeight] = useState(loadHeight)
+  const [height, setHeight] = useState(() => loadNumber(HEIGHT_KEY, DEFAULT_HEIGHT, clampHeight))
+  const [fontSize, setFontSize] = useState(() => loadNumber(FONT_KEY, DEFAULT_FONT, clampFont))
   const hostRef = useRef(null)
   const viewRef = useRef(null)
   const onChangeRef = useRef(onChange)
@@ -67,6 +67,14 @@ export default function CodeEditor({ value, onChange, activeLine, activeKind, er
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  const zoomBy = (delta) => setFontSize((size) => clampFont(size + delta))
+  const zoomKeymap = [
+    { key: 'Mod-=', run: () => (zoomBy(1), true) },
+    { key: 'Mod-+', run: () => (zoomBy(1), true) },
+    { key: 'Mod--', run: () => (zoomBy(-1), true) },
+    { key: 'Mod-0', run: () => (setFontSize(DEFAULT_FONT), true) },
+  ]
 
   useEffect(() => {
     const view = new EditorView({
@@ -81,7 +89,13 @@ export default function CodeEditor({ value, onChange, activeLine, activeKind, er
           bracketMatching(),
           closeBrackets(),
           EditorState.tabSize.of(2),
-          keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([
+            ...zoomKeymap,
+            ...closeBracketsKeymap,
+            ...defaultKeymap,
+            ...historyKeymap,
+            indentWithTab,
+          ]),
           javascript(),
           syntaxHighlighting(highlight),
           theme,
@@ -124,33 +138,36 @@ export default function CodeEditor({ value, onChange, activeLine, activeKind, er
     view.dispatch({ effects })
   }, [activeLine, activeKind, errorLine, value])
 
+  useEffect(() => saveNumber(HEIGHT_KEY, height), [height])
+
   useEffect(() => {
-    try {
-      localStorage.setItem(HEIGHT_KEY, String(height))
-    } catch {
-      // ignore
+    saveNumber(FONT_KEY, fontSize)
+    viewRef.current.requestMeasure()
+  }, [fontSize])
+
+  // Ctrl/Cmd + scroll over the editor zooms it instead of the page.
+  useEffect(() => {
+    const host = hostRef.current
+    let pending = 0
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      pending += e.deltaY
+      while (Math.abs(pending) >= WHEEL_STEP) {
+        const direction = Math.sign(pending)
+        setFontSize((size) => clampFont(size - direction))
+        pending -= direction * WHEEL_STEP
+      }
     }
-  }, [height])
+    host.addEventListener('wheel', onWheel, { passive: false })
+    return () => host.removeEventListener('wheel', onWheel)
+  }, [])
 
   // Drag the handle under the editor to resize it vertically.
   const startResize = (e) => {
-    if (e.button !== 0) return
-    e.preventDefault()
-    const handle = e.currentTarget
     const startY = e.clientY
     const startHeight = height
-    handle.setPointerCapture(e.pointerId)
-    document.body.classList.add('resizing')
-    const onMove = (ev) => setHeight(clampHeight(startHeight + ev.clientY - startY))
-    const onEnd = () => {
-      document.body.classList.remove('resizing')
-      handle.removeEventListener('pointermove', onMove)
-      handle.removeEventListener('pointerup', onEnd)
-      handle.removeEventListener('pointercancel', onEnd)
-    }
-    handle.addEventListener('pointermove', onMove)
-    handle.addEventListener('pointerup', onEnd)
-    handle.addEventListener('pointercancel', onEnd)
+    startPointerDrag(e, (ev) => setHeight(clampHeight(startHeight + ev.clientY - startY)), 'row')
   }
 
   const resizeWithKeys = (e) => {
@@ -164,7 +181,18 @@ export default function CodeEditor({ value, onChange, activeLine, activeKind, er
 
   return (
     <div className="editor">
-      <div className="editor-host" ref={hostRef} style={{ height }} />
+      <div className="editor-zoom" role="group" aria-label="Editor zoom">
+        <button onClick={() => zoomBy(-1)} disabled={fontSize <= MIN_FONT} aria-label="Zoom out" title="Zoom out (Ctrl -)">
+          −
+        </button>
+        <button className="zoom-level" onClick={() => setFontSize(DEFAULT_FONT)} title="Reset zoom (Ctrl 0)">
+          {Math.round((fontSize / DEFAULT_FONT) * 100)}%
+        </button>
+        <button onClick={() => zoomBy(1)} disabled={fontSize >= MAX_FONT} aria-label="Zoom in" title="Zoom in (Ctrl +)">
+          +
+        </button>
+      </div>
+      <div className="editor-host" ref={hostRef} style={{ height, '--editor-font-size': `${fontSize}px` }} />
       <div
         className="editor-resize"
         role="separator"

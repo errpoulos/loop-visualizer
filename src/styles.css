@@ -143,9 +143,35 @@ kbd {
 }
 kbd + kbd { margin-left: 0; }
 
-.layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 22px 16px; margin-top: 24px; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, var(--split, 45%)) 16px minmax(0, 1fr);
+  gap: 22px 0;
+  margin-top: 24px;
+}
 .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+/* Draggable divider between the two columns */
+.col-splitter {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+.col-splitter::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 50%;
+  border-left: 1px dotted var(--border);
+}
+.col-splitter:hover::before, .col-splitter:active::before, .col-splitter:focus-visible::before {
+  border-left: 1px solid var(--green);
+}
+.col-splitter:focus-visible { outline: none; background: var(--bg-green); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .col-splitter { display: none; }
+}
 
 /* ── Panels: square boxes with the title inset into the top border ── */
 
@@ -350,10 +376,24 @@ button:disabled { opacity: 0.35; cursor: default; }
   touch-action: none;
 }
 .editor-resize::before { content: '═══'; letter-spacing: 1px; }
-.editor-resize:hover, .editor-resize:focus-visible { color: var(--green); background: var(--bg2); }
+.editor-resize:hover, .editor-resize:active, .editor-resize:focus-visible { color: var(--green); background: var(--bg2); }
 .editor-resize:focus-visible { outline: 1px solid var(--green); outline-offset: 0; }
-body.resizing { cursor: row-resize; user-select: none; }
-body.resizing .editor-resize { color: var(--green); background: var(--bg2); }
+body[data-dragging] { user-select: none; }
+body[data-dragging='row'] { cursor: row-resize; }
+body[data-dragging='col'] { cursor: col-resize; }
+
+/* Zoom control sits on the code panel's top border, opposite the title */
+.editor-zoom {
+  position: absolute;
+  top: -0.85em;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+  background: var(--panel);
+}
+.editor-zoom button { padding: 0 7px; font-size: 12px; line-height: 1.5; }
+.editor-zoom .zoom-level { min-width: 52px; color: var(--muted); }
 .output {
   margin: 0;
   padding: 8px 12px;
